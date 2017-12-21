@@ -7,6 +7,8 @@ import android.graphics.BitmapFactory;
 import android.util.Log;
 import android.util.Pair;
 
+import com.numericcal.dnn.Manager;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;

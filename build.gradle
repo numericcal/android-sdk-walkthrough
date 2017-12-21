@@ -18,7 +18,7 @@ allprojects {
         maven { url "https://maven.google.com" }
         ////////////////////////////////////////////////////////////////////
         // add the numericcal maven repository below
-        
+        maven { url "https://numericcal.jfrog.io/numericcal/libs-release" }
     }
 }
 

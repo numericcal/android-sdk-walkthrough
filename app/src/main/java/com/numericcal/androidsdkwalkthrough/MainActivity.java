@@ -22,15 +22,19 @@ import io.reactivex.schedulers.Schedulers;
 
 ////////////////////////////////////////////////////////////////////
 // add the numericcal Edge SDK imports below
+import com.numericcal.dnn.Config;
+import com.numericcal.dnn.Manager;
+import com.numericcal.dnn.Handle;
 
 public class MainActivity extends AppCompatActivity {
 
 
-    static final String TAG = "AndroidSdkWalkthrough";
-    static final String DATA_SUFFIX = ".jpg";
+    static String TAG = "AndroidSdkWalkthrough";
+    static String DATA_SUFFIX = ".jpg";
 
     ////////////////////////////////////////////////////////////////////
     // create a netManager field
+    Manager.Dnn netManager = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
         // try not to grab this reference from the Manager directly in other places;
         // while Manager is implemented as Singleton due to the constraints that Android
         // imposes, it is better to propagate netManager reference explicitly
-
+        netManager = Manager.create(getApplicationContext());
 
         // get a list of image file names in assets and load the corresponding images
         List<String> sampleImageNames = Utils.getAssetImageNames(getBaseContext(),
@@ -64,9 +68,13 @@ public class MainActivity extends AppCompatActivity {
 
         ////////////////////////////////////////////////////////////////////
         // create a handle and extract the network receptive field
-
-        Single<Pair<Integer, Integer>> hw = Single.just(new Pair<>(224,224));
-
+        Single<Handle.Rx> dnn =
+                configAndCreateDnnHandle("mobilenet_1.0_224").cache();
+        //Single<Pair<Integer, Integer>> hw = Single.just(new Pair<>(224,224));
+        Single<Pair<Integer, Integer>> hw = dnn
+                .map(handle -> new Pair<>(
+                        handle.info.inputShape().get(1),
+                        handle.info.inputShape().get(2)));
 
         Observable<Integer> ticker = periodicIndexChange(sampleImages.size()).share();
         Observable<Bitmap> img = pickAndCrop(ticker, hw, sampleImages).share();
@@ -76,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
 
         ////////////////////////////////////////////////////////////////////
         // set up the inference chain
+        runInferenceAndLabel(dnn, img, labelText);
 
         ////////////////////////////////////////////////////////////////////
         // set up the extra inference chains
@@ -91,7 +100,11 @@ public class MainActivity extends AppCompatActivity {
         //
         // we should not release the manager if we're only changing configuration;
         // otherwise it will spend time re-loading the networks in onResume
-
+        if (!isChangingConfigurations() && netManager != null) {
+            Log.i(TAG, "seems to be going in background ...");
+            netManager.release();
+            netManager = null;
+        }
         super.onPause();
     }
 
@@ -103,15 +116,45 @@ public class MainActivity extends AppCompatActivity {
 
     ////////////////////////////////////////////////////////////////////
     // create a signal processing chain using DNN for inference
+    private void runInferenceAndLabel(Single<Handle.Rx> dnn,
+                                      Observable<Bitmap> img,
+                                      TextView labelText) {
+        final int MEAN = 128;
+        final float STD = 128.0f;
 
+        dnn
+                .flatMapObservable(hdl -> {
+                    int height = hdl.info.inputShape().get(1);
+                    int width = hdl.info.inputShape().get(2);
+                    return img
+                            .observeOn(Schedulers.computation())
+                            .map(bm -> Utils.pixToFloatBuff(bm, width, height, MEAN, STD))
+                            .compose(hdl.runInference()) // <== all it takes to run inference
+                            .map(Utils::argMaxPositive)
+                            .map(miv ->  "[" + hdl.info.modelId() + "] Inference label: " + hdl.info.labels().get(miv.first));
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnDispose(() -> Log.i(TAG, "AutoDispose of the label ticker ..."))
+                .as(AutoDispose.autoDisposable(AndroidLifecycleScopeProvider.from(this)))
+                .subscribe(labelText::setText,
+                        thr -> {Log.e(TAG, "Error received in runInferenceAndLabel(): " + thr.toString());});
+    }
 
     ////////////////////////////////////////////////////////////////////
     // configure a dnn model and create a handle
+    private Single<Handle.Rx> configAndCreateDnnHandle(String modelId) {
 
+        Config.Model netCfg = Config
+                .model(modelId)
+                .downloadUpdates(false)    // check for model updates (disabled in alpha)
+                .reportPerformance(false); // upload profiling results (ditto)
+
+        return netManager.createHandle(netCfg);
+    }
 
     /*
-    * Everything below is GUI related.
-    */
+     * Everything below is GUI related.
+     */
     private Observable<Integer> periodicIndexChange(Integer len) {
         Integer INTERVAL = 30;
         Integer MULTIPLIER = 100;
@@ -142,8 +185,7 @@ public class MainActivity extends AppCompatActivity {
                 .as(AutoDispose.autoDisposable(AndroidLifecycleScopeProvider.from(this)))
                 .subscribe(camView::setImageBitmap,
                         (Throwable thr) -> {
-                            Log.i(TAG, "Error received in showImage(): " + thr.toString());
-                            thr.printStackTrace();
+                            Log.e(TAG, "Error received in showImage(): " + thr.toString());
                         });
     }
 
@@ -156,7 +198,6 @@ public class MainActivity extends AppCompatActivity {
                 .as(AutoDispose.autoDisposable(AndroidLifecycleScopeProvider.from(this)))
                 .subscribe((Integer i) -> {
                     fileNameView.setText("Filename: " + imageNames.get(i));
-                }, (Throwable thr) -> {Log.i(TAG, "Error received in printImageFileName(): " + thr.toString());});
+                }, (Throwable thr) -> {Log.e(TAG, "Error received in printImageFileName(): " + thr.toString());});
     }
-
 }
