@@ -88,6 +88,10 @@ public class MainActivity extends AppCompatActivity {
 
         ////////////////////////////////////////////////////////////////////
         // set up the extra inference chains
+        Single<Handle.Rx> dnnExtra =
+                configAndCreateDnnHandle("mobilenet_0.25_128").cache();
+        runInferenceAndLabel(dnnExtra, img, labelTextExtraA);
+        runInferenceAndLabel(dnn, img, labelTextExtraB);
 
     }
 
@@ -96,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
         Log.i(TAG, "onPause()");
 
         ////////////////////////////////////////////////////////////////////
-        // release the netManager to release resources
+        // destroy the netManager to release resources
         //
         // we should not release the manager if we're only changing configuration;
         // otherwise it will spend time re-loading the networks in onResume
@@ -137,7 +141,8 @@ public class MainActivity extends AppCompatActivity {
                 .doOnDispose(() -> Log.i(TAG, "AutoDispose of the label ticker ..."))
                 .as(AutoDispose.autoDisposable(AndroidLifecycleScopeProvider.from(this)))
                 .subscribe(labelText::setText,
-                        thr -> {Log.e(TAG, "Error received in runInferenceAndLabel(): " + thr.toString());});
+                        thr -> {Log.e(TAG, "Error received in runInferenceAndLabel(): " + thr.toString());
+                });
     }
 
     ////////////////////////////////////////////////////////////////////
@@ -185,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
                 .as(AutoDispose.autoDisposable(AndroidLifecycleScopeProvider.from(this)))
                 .subscribe(camView::setImageBitmap,
                         (Throwable thr) -> {
-                            Log.e(TAG, "Error received in showImage(): " + thr.toString());
+                            Log.i(TAG, "Error received in showImage(): " + thr.toString());
                         });
     }
 
@@ -198,6 +203,7 @@ public class MainActivity extends AppCompatActivity {
                 .as(AutoDispose.autoDisposable(AndroidLifecycleScopeProvider.from(this)))
                 .subscribe((Integer i) -> {
                     fileNameView.setText("Filename: " + imageNames.get(i));
-                }, (Throwable thr) -> {Log.e(TAG, "Error received in printImageFileName(): " + thr.toString());});
+                }, (Throwable thr) -> {Log.i(TAG, "Error received in printImageFileName(): " + thr.toString());});
     }
+
 }

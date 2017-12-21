@@ -7,8 +7,6 @@ import android.graphics.BitmapFactory;
 import android.util.Log;
 import android.util.Pair;
 
-import com.numericcal.dnn.Manager;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -96,10 +94,15 @@ public class Utils {
         return fbuff;
     }
 
-    public static Bitmap centerCrop(Bitmap bm, Integer viewWidth, Integer viewHeight) {
-        return Bitmap.createBitmap(bm, // this will throw if out of bounds
-                bm.getWidth()/2 - viewWidth/2,
-                bm.getHeight()/2 - viewHeight/2,
-                viewWidth, viewHeight);
+    public static String printArray(float[] arr) {
+        StringBuilder s = new StringBuilder();
+        s.append("[");
+        for (float x: arr) {
+            s.append(x);
+            s.append(" ");
+        }
+        s.append("]");
+
+        return s.toString();
     }
 }
