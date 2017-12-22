@@ -1,0 +1,2 @@
+* Example Android App using Numericcal Edge SDK for DNN Integration
+For instructions, please see [[https://medium.com/@numericcal/alpha-release-of-numericcal-platform-45fce19b28c3][our Alpha release announcement]].
