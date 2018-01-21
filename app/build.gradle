@@ -32,7 +32,7 @@ dependencies {
 
     ////////////////////////////////////////////////////////////////////
     // add the numericcal Edge SDK dependency below
-    compile 'com.numericcal.dnn:dnn:0.2.35-alpha'
+    compile 'com.numericcal.dnn:dnn:0.2.37-alpha'
 
     compile 'com.uber.autodispose:autodispose:0.5.1'
     compile 'com.uber.autodispose:autodispose-android:0.5.1'
